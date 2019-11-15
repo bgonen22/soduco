@@ -1,2 +1,0 @@
-# soduco
-soduco in py
