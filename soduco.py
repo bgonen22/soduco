@@ -80,6 +80,8 @@ class CreateBoard(QWidget):
                 if not self.get_valid_number(y, x):
                     self.board_tmp[y][x] = 0
                     x -= 1
+                    if self.board_tmp[y][x] > 10: # this is the user define value need to go one cell back
+                        x -= 1
                 else:
                     return x, y
             x = 8
