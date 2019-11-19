@@ -11,6 +11,9 @@ class CreateBoard(QWidget):
         # noinspection PyArgumentList
         super().__init__()
         self.grid = QGridLayout()
+        self.error_msg = QLineEdit(self)
+        self.error_msg.setEnabled(0)
+        self.grid.addWidget(self.error_msg, 4, 0)
         self.board = []
         self.board_tmp = []
         self.title = 'Soduco Solver'
@@ -37,9 +40,7 @@ class CreateBoard(QWidget):
                         text.setMaxLength(1)
                         text.setFixedWidth(15)
                         text.setValidator(QIntValidator())
-                        y_c = y_group * 3 + y
-                        x_c = x_group * 3 + x
-                        text.textEdited.connect(lambda : self.check_input())
+                        text.textEdited.connect(lambda: self.check_input())
                         self.board[y_group * 3 + y].append(text)
 
                         # noinspection PyArgumentList
@@ -47,9 +48,9 @@ class CreateBoard(QWidget):
 
                 # noinspection PyArgumentList
                 self.grid.addWidget(current_group_box, y_group, x_group)
-        button_solve = QPushButton('Solve', self)
-        button_solve.clicked.connect(self.solve)
-        self.grid.addWidget(button_solve)
+        self.button_solve = QPushButton('Solve', self)
+        self.button_solve.clicked.connect(self.solve)
+        self.grid.addWidget(self.button_solve)
         button_clear = QPushButton('Clear', self)
         button_clear.clicked.connect(lambda: self.clear_table(1))
         self.grid.addWidget(button_clear)
@@ -60,6 +61,10 @@ class CreateBoard(QWidget):
 
     @pyqtSlot()
     def solve(self):
+        if not self.check_input():
+            self.error_msg.setText("Please fix the red values")
+            self.error_msg.setStyleSheet("color:red;")
+            return
         self.board_tmp = []
         self.get_fix_numbers()
         # print_table()
@@ -80,8 +85,8 @@ class CreateBoard(QWidget):
         self.print_table()
 
     def get_xy(self, x, y):
-        while (y >= 0):
-            while (x >= 0):
+        while y >= 0:
+            while x >= 0:
                 if not self.get_valid_number(y, x):
                     self.board_tmp[y][x] = 0
                     x -= 1
@@ -104,12 +109,26 @@ class CreateBoard(QWidget):
 
     def check_input(self):
         self.get_fix_numbers()
+        status = 1
         for y in range(9):
             for x in range(9):
+                if self.board_tmp[y][x] == 0:
+                    self.board[y][x].setStyleSheet("color: black;")
+                    continue
                 if not self.check_num(self.board_tmp[y][x], x, y):
                     self.board[y][x].setStyleSheet("color: red;")
+                    status = 0
                 else:
                     self.board[y][x].setStyleSheet("color: green;")
+        if status:
+            self.error_msg.setText("Ready To Solve")
+            self.error_msg.setStyleSheet("color: green;")
+            self.button_solve.setEnabled(1)
+        else:
+            self.error_msg.setText("Please fix the red values")
+            self.error_msg.setStyleSheet("color:red;")
+            self.button_solve.setEnabled(0)
+        return status
 
     def check_num(self, num, x, y):
         num_list = [num, num + 10]
@@ -119,7 +138,7 @@ class CreateBoard(QWidget):
             if self.board_tmp[y][x_c] in num_list:
                 return 0
         for y_c in range(9):
-            if (y_c == y):
+            if y_c == y:
                 continue
             if self.board_tmp[y_c][x] in num_list:
                 return 0
@@ -148,15 +167,15 @@ class CreateBoard(QWidget):
                     self.board_tmp[y].append(num)
 
     def clear_table(self, clear_all):
-        self.get_fix_numbers()
+        # self.get_fix_numbers()
         for y in range(9):
             for x in range(9):
                 if clear_all:
                     self.board[y][x].clear()
-                    self.board_tmp = 0
-                elif self.board_tmp [y][x] < 10:
+                    self.board_tmp[y][x] = 0
+                elif self.board_tmp[y][x] < 10:
                     self.board[y][x].clear()
-                    self.board_tmp = 0
+                    self.board_tmp[y][x] = 0
 
     def print_table(self):
         for y in range(len(self.board_tmp)):
