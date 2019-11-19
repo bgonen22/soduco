@@ -10,9 +10,10 @@ class CreateBoard(QWidget):
     def __init__(self):
         # noinspection PyArgumentList
         super().__init__()
+        self.grid = QGridLayout()
         self.board = []
         self.board_tmp = []
-        self.title = 'PyQt5 textbox - pythonspot.com'
+        self.title = 'Soduco Solver'
         self.left = 100
         self.top = 100
         self.width = 400
@@ -22,8 +23,7 @@ class CreateBoard(QWidget):
     def init_ui(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        grid = QGridLayout()
-        self.setLayout(grid)
+        self.setLayout(self.grid)
         for board_y in range(9):
             self.board.append([])
         for y_group in range(3):
@@ -37,22 +37,25 @@ class CreateBoard(QWidget):
                         text.setMaxLength(1)
                         text.setFixedWidth(15)
                         text.setValidator(QIntValidator())
+                        y_c = y_group * 3 + y
+                        x_c = x_group * 3 + x
+                        text.textEdited.connect(lambda : self.check_input())
                         self.board[y_group * 3 + y].append(text)
 
                         # noinspection PyArgumentList
                         grid_group_box.addWidget(text, y, x)
 
                 # noinspection PyArgumentList
-                grid.addWidget(current_group_box, y_group, x_group)
+                self.grid.addWidget(current_group_box, y_group, x_group)
         button_solve = QPushButton('Solve', self)
         button_solve.clicked.connect(self.solve)
-        grid.addWidget(button_solve)
+        self.grid.addWidget(button_solve)
         button_clear = QPushButton('Clear', self)
         button_clear.clicked.connect(lambda: self.clear_table(1))
-        grid.addWidget(button_clear)
+        self.grid.addWidget(button_clear)
         button_clear_solution = QPushButton('Clear Solution', self)
         button_clear_solution.clicked.connect(lambda: self.clear_table(0))
-        grid.addWidget(button_clear_solution)
+        self.grid.addWidget(button_clear_solution)
         self.show()
 
     @pyqtSlot()
@@ -69,18 +72,20 @@ class CreateBoard(QWidget):
                 if not self.get_valid_number(y, x):
                     (x, y) = self.get_xy(x, y)
                     if x == -1:
+                        text = QLineEdit(self)
+                        text.setText("No Solution Found")
+                        self.grid.addWidget(text)
+                        self.show()
                         return
         self.print_table()
 
     def get_xy(self, x, y):
-        # x = curr_x
-        # y = curr_y
         while (y >= 0):
-            while(x >= 0):
+            while (x >= 0):
                 if not self.get_valid_number(y, x):
                     self.board_tmp[y][x] = 0
                     x -= 1
-                    if self.board_tmp[y][x] > 10: # this is the user define value need to go one cell back
+                    if self.board_tmp[y][x] > 10:  # this is the user define value need to go one cell back
                         x -= 1
                 else:
                     return x, y
@@ -97,9 +102,17 @@ class CreateBoard(QWidget):
                 return 1
         return 0
 
+    def check_input(self):
+        self.get_fix_numbers()
+        for y in range(9):
+            for x in range(9):
+                if not self.check_num(self.board_tmp[y][x], x, y):
+                    self.board[y][x].setStyleSheet("color: red;")
+                else:
+                    self.board[y][x].setStyleSheet("color: green;")
+
     def check_num(self, num, x, y):
         num_list = [num, num + 10]
-        bad_num = 0
         for x_c in range(9):
             if x_c == x:
                 continue
@@ -123,6 +136,7 @@ class CreateBoard(QWidget):
 
     # create the board_tmp with the user define numbers
     def get_fix_numbers(self):
+        self.board_tmp = []
         for y in range(9):
             self.board_tmp.append([])
             for x in range(9):
@@ -139,8 +153,10 @@ class CreateBoard(QWidget):
             for x in range(9):
                 if clear_all:
                     self.board[y][x].clear()
-                elif self.board_tmp[y][x] < 10:
+                    self.board_tmp = 0
+                elif self.board_tmp [y][x] < 10:
                     self.board[y][x].clear()
+                    self.board_tmp = 0
 
     def print_table(self):
         for y in range(len(self.board_tmp)):
