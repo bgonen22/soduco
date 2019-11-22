@@ -1,8 +1,9 @@
+import copy
 import sys
 
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtGui import QIntValidator
-from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QGridLayout, QGroupBox, QPushButton
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QGridLayout, QGroupBox, QPushButton, QSpinBox, QLabel
 
 
 class CreateBoard(QWidget):
@@ -10,10 +11,23 @@ class CreateBoard(QWidget):
     def __init__(self):
         # noinspection PyArgumentList
         super().__init__()
+        self.a = []
+        self.max_solutions = 100
+        self.solution_cnt = 0
+        self.button_solve = QPushButton('Solve', self)
         self.grid = QGridLayout()
         self.error_msg = QLineEdit(self)
         self.error_msg.setEnabled(0)
+        # self.solutions_label.setAlignment(Qt.al)
+        self.solutions_spinbox = QSpinBox(self)
+        self.solutions_spinbox.valueChanged.connect(self.change_spinbox)
+        self.solutions_spinbox.setMaximum(0)
+        self.solutions_label = QLabel("Solution:" + str(self.solutions_spinbox.value()) + "/" + str(self.solution_cnt))
+
         self.grid.addWidget(self.error_msg, 4, 0)
+        self.grid.addWidget(self.solutions_label, 4, 1)
+        self.grid.addWidget(self.solutions_spinbox, 4, 2)
+        self.board_solutions = []
         self.board = []
         self.board_tmp = []
         self.title = 'Soduco Solver'
@@ -27,6 +41,7 @@ class CreateBoard(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.setLayout(self.grid)
+        # self.board_solutions.append([])
         for board_y in range(9):
             self.board.append([])
         for y_group in range(3):
@@ -48,7 +63,6 @@ class CreateBoard(QWidget):
 
                 # noinspection PyArgumentList
                 self.grid.addWidget(current_group_box, y_group, x_group)
-        self.button_solve = QPushButton('Solve', self)
         self.button_solve.clicked.connect(self.solve)
         self.grid.addWidget(self.button_solve)
         button_clear = QPushButton('Clear', self)
@@ -57,10 +71,12 @@ class CreateBoard(QWidget):
         button_clear_solution = QPushButton('Clear Solution', self)
         button_clear_solution.clicked.connect(lambda: self.clear_table(0))
         self.grid.addWidget(button_clear_solution)
-        self.show()
+        # self.show()
 
     @pyqtSlot()
     def solve(self):
+        self.solution_cnt = 0
+        self.board_solutions = []
         if not self.check_input():
             self.error_msg.setText("Please fix the red values")
             self.error_msg.setStyleSheet("color:red;")
@@ -77,29 +93,60 @@ class CreateBoard(QWidget):
                 if not self.get_valid_number(y, x):
                     (x, y) = self.get_xy(x, y)
                     if x == -1:
-                        text = QLineEdit(self)
-                        text.setText("No Solution Found")
-                        self.grid.addWidget(text)
-                        self.show()
                         return
-        self.print_table()
+                if x == y == 8:
+                    self.print_table()
+                    self.solutions_spinbox.setMaximum(self.solution_cnt)
+                    self.solutions_spinbox.setMinimum(1)
+                    if self.solution_cnt == self.max_solutions:
+                        self.change_spinbox()
+                        return
+                    (x, y) = self.find_not_user_defined_xy(x, y)
+                    (x, y) = self.get_xy(x, y)  # after find solution, we check for more solutions
+                    if x == -1:
+                        self.change_spinbox()
+                        return
+
+    def change_spinbox(self):
+        self.change_label()
+        self.copy_solution_to_table()
+
+    def change_label(self):
+        self.solutions_label.setText("Solution:" + str(self.solutions_spinbox.value()) + "/" + str(self.solution_cnt))
 
     def get_xy(self, x, y):
         while y >= 0:
             while x >= 0:
                 if not self.get_valid_number(y, x):
                     self.board_tmp[y][x] = 0
-                    x -= 1
-                    if self.board_tmp[y][x] > 10:  # this is the user define value need to go one cell back
-                        x -= 1
+                    (x, y) = self.find_not_user_defined_xy(x, y)
                 else:
                     return x, y
             x = 8
             y -= 1
         return -1, -1
 
+    def find_not_user_defined_xy(self, x, y):
+        (x, y) = self.move_back(x, y)
+        if y < 0:
+            return -1, -1
+        while self.board_tmp[y][x] > 10:
+            (x, y) = self.move_back(x, y)
+            if y < 0:
+                return -1, -1
+        return x, y
+
+    def move_back(self, x, y):
+        x -= 1
+        if x < 0:
+            x = 8
+            y -= 1
+            if y < 0:
+                x = -1
+        return x, y
+
     def get_valid_number(self, y, x):
-        if self.board_tmp[y][x] > 9:
+        if self.board_tmp[y][x] > 10:
             return 1
         for current_num in range(self.board_tmp[y][x] + 1, 10):
             if self.check_num(current_num, x, y):
@@ -178,16 +225,32 @@ class CreateBoard(QWidget):
                     self.board_tmp[y][x] = 0
 
     def print_table(self):
-        for y in range(len(self.board_tmp)):
-            for x in range(len(self.board_tmp)):
-                # print(self.board_tmp[y][x])
-                num = self.board_tmp[y][x]
+        self.board_solutions.append(copy.deepcopy(self.board_tmp))
+        self.solution_cnt += 1
+        # for y in range(len(self.board_tmp)):
+        #     for x in range(len(self.board_tmp)):
+        #         # print(self.board_tmp[y][x])
+        #         num = self.board_tmp[y][x]
+        #         if num > 10:
+        #             num -= 10
+        #         self.board[y][x].setText(str(num))
+
+    def copy_solution_to_table(self):
+        for y in range(9):
+            for x in range(9):
+                solution_index = self.solutions_spinbox.value() - 1
+                num = self.board_solutions[solution_index][y][x]
                 if num > 10:
                     num -= 10
                 self.board[y][x].setText(str(num))
 
 
-if __name__ == '__main__':
+def main():
     app = QApplication(sys.argv)
     ex = CreateBoard()
+    ex.show()
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()
